@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/consensys/gnark/backend/groth16"
+	// "github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 
@@ -22,24 +23,40 @@ import (
 )
 
 type eddsaCircuit struct {
-	PublicKey eddsa.PublicKey   `gnark:",public"`
 	Signature eddsa.Signature   `gnark:",public"`
 	Message   frontend.Variable `gnark:",public"`
+
+	define func(api frontend.API) error
 }
 
 func (circuit *eddsaCircuit) Define(api frontend.API) error {
-	curve, err := twistededwards.NewEdCurve(api, tedwards.BN254)
-	if err != nil {
-		return err
-	}
+	return circuit.define(api)
+}
 
-	mimc, err := mimc.NewMiMC(api)
-	if err != nil {
-		return err
-	}
+// reutrn the define func as a closure so we can hardcode the public key as part of the circuit
+func (circuit *eddsaCircuit) defineWithPubkey(pubkey eddsa.PublicKey) func(frontend.API) error {
+	return func(api frontend.API) error {
+		curve, err := twistededwards.NewEdCurve(api, tedwards.BN254)
+		if err != nil {
+			return err
+		}
 
-	// verify the signature in the cs
-	return eddsa.Verify(curve, circuit.Signature, circuit.Message, circuit.PublicKey, &mimc)
+		mimc, err := mimc.NewMiMC(api)
+		if err != nil {
+			return err
+		}
+		// verify the signature in the cs
+		return eddsa.Verify(curve, circuit.Signature, circuit.Message, pubkey, &mimc)
+	}
+}
+
+// Private Key
+type Prover struct {
+	pk groth16.ProvingKey
+}
+
+// Public Key
+type Verifier struct {
 }
 
 func main() {
@@ -50,7 +67,16 @@ func main() {
 
 	signature := signMsg(privateKey, msg)
 
+	// cs := compileCircuit(publicKey)
 	var circuit eddsaCircuit
+
+	// assign public key values
+	// fixed pubkey should be part of circuit
+	var pubKey eddsa.PublicKey
+	_publicKey := publicKey.Bytes()
+	pubKey.Assign(tedwards.BN254, _publicKey[:32])
+	circuit.define = circuit.defineWithPubkey(pubKey)
+
 	cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 	if err != nil {
 		panic(err)
@@ -66,12 +92,6 @@ func main() {
 
 	// assign message value
 	assignment.Message = msg
-
-	// public key bytes
-	_publicKey := publicKey.Bytes()
-
-	// assign public key values
-	assignment.PublicKey.Assign(tedwards.BN254, _publicKey[:32])
 
 	// assign signature values
 	assignment.Signature.Assign(tedwards.BN254, signature)
@@ -145,3 +165,7 @@ func signMsg(privateKey signature.Signer, msg []byte) []byte {
 	}
 	return signature
 }
+
+/*func compileCircuit(pubKey signature.PublicKey) constraint.ConstraintSystem {
+
+}*/
