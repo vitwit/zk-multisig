@@ -23,7 +23,11 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 
+	// gnark key types
 	"github.com/cosmos/cosmos-sdk/crypto/keys/gnark"
+
+	// simple circuit example
+	gnarkeddsa "github.com/cosmos/cosmos-sdk/crypto/keys/gnark/eddsa"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254/twistededwards/eddsa"
 )
@@ -178,10 +182,10 @@ func signTx(cmd *cobra.Command, clientCtx client.Context, txf tx.Factory, newTx 
 	}
 
 	// sign with the hidden key and get the hashed msg
-	msgToSign, signatureBytes := gnark.SignMsg(privKey, txSignBytes)
+	msgToSign, signatureBytes := gnarkeddsa.SignMsg(privKey, txSignBytes)
 
 	// prepare the witness for zk proof
-	privateWitness, publicWitness := gnark.PrepareWitness(msgToSign, signatureBytes)
+	privateWitness, publicWitness := gnarkeddsa.PrepareWitness(msgToSign, signatureBytes)
 	privWitnessBytes, err := privateWitness.MarshalBinary()
 	if err != nil {
 		panic(err)
