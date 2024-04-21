@@ -13,11 +13,13 @@ func TestGnark(t *testing.T) {
 
 	pk, vk, cs := CompileCircuit(publicKey)
 
+	// get the byte representation of the circuit
 	vkBuf, pkBuf, csBuf := new(bytes.Buffer), new(bytes.Buffer), new(bytes.Buffer)
 	vk.WriteTo(vkBuf)
 	pk.WriteTo(pkBuf)
 	cs.WriteTo(csBuf)
 
+	// build the verifier (pubkey) and prover (privkey) from the bytes
 	verifier := PubKey{vkBuf.Bytes()}
 	prover := PrivKey{
 		ProvingKey:       pkBuf.Bytes(),
@@ -25,36 +27,37 @@ func TestGnark(t *testing.T) {
 		VerifyingKey:     vkBuf.Bytes(),
 	}
 
+	// get a standard msg
 	msg := GetMsg()
-	fmt.Println(msg)
-	fmt.Println(len(msg))
 
+	// eddsa sign it
 	msgToSign, signature := SignMsg(privateKey, msg)
 
+	// prepare witness of the msg signed and signature
 	privateWitness, publicWitness := PrepareWitness(msgToSign, signature)
 
-	// marshal the witness
+	// marshal the priv witness for proving
 	privWitnessBytes, err := privateWitness.MarshalBinary()
 	if err != nil {
 		panic(err)
 	}
 
+	// produce zk proof
 	proofBytes, err := prover.Sign(privWitnessBytes)
 	if err != nil {
 		panic(err)
 	}
 
-	// marshal the witness
+	// marshal the pub witness for verifying
 	pubWitnessBytes, err := publicWitness.MarshalBinary()
 	if err != nil {
 		panic(err)
 	}
 
+	// "signature" contains the proof bytes and witness bytes
 	sig := Signature{
 		ProofBytes:   proofBytes,
 		WitnessBytes: pubWitnessBytes,
-		/*EddsaSignature: signature,
-		Message:        msgToSign,*/
 	}
 
 	sigBytes, err := json.Marshal(sig)
@@ -62,6 +65,7 @@ func TestGnark(t *testing.T) {
 		panic(err)
 	}
 
+	// verify zk proof
 	valid := verifier.VerifySignature(msg, sigBytes)
 	if !valid {
 		panic("invalid sig")

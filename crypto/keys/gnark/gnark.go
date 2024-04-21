@@ -48,20 +48,22 @@ const (
 
 //-------
 // define a specific circuit
-// this should be independent of this key implementation and can move elsewhere
-// the Pubkey/Privkey defined here should not depend on the circuit at all
+// this should be independent of the key implementation and should be moved elsewhere
+// the Pubkey/Privkey defined here should not depend on the circuit at all (only the proving/verifying keys generated from it)
 //
-// only requirement: the circuit MUST begin with the Message (hash of the tx signBytes)
-// this is necessary so we can hash the tx bytes in VerifySignature and check they're equal to what's in the witness
-//
-// This circuit is just a simple signel eddsa signature with a single public key that is part of the circuit.
-// Kind of useless, but helpful for initial testing.
-// TODO: generalize it to a multisig case, or to other more interesting cases
+// however there is one requirement: the circuit struct (witness) MUST begin with the Message (hash of the tx signBytes).
+// this is because the message in the circuit witness can only be a single field element,
+// but we need to pass in the full tx bytes in VerifySignature, so we need to be able to check
+// the hash of the tx bytes equal the Message in the witness. Since we don't want to depend directly on the witness structure (it could be an arbitrary circuit)
+// we just require the first element in the witness is the Message so we can at least fetch that.
+
+// TODO: write other example circuits
 
 type eddsaCircuit struct {
 	Message   frontend.Variable `gnark:",public"`
 	Signature eddsa.Signature   `gnark:",public"`
 
+	// we use a closure for the Define method so we can hardcode the public key into the circuit
 	define func(api frontend.API) error
 }
 
@@ -145,7 +147,7 @@ func GenKeys() (signature.Signer, signature.PublicKey) {
 	return privateKey, publicKey
 }
 
-// returns msgToSign and signature
+// returns msgToSign (msg hashed to curve) and eddsa signature
 func SignMsg(privateKey signature.Signer, msg []byte) ([]byte, []byte) {
 
 	// instantiate hash function
@@ -172,7 +174,7 @@ func SignMsg(privateKey signature.Signer, msg []byte) ([]byte, []byte) {
 	return msgToSign, signature
 }
 
-//----------
+//---------------------------
 // PrivKey (Prover)
 
 var (
@@ -245,6 +247,7 @@ var (
 	_ cryptotypes.PubKey = &PubKey{}
 )
 
+// Signature is a "zk signature" for gnark containing the ProofBytes and the WitnessBytes
 type Signature struct {
 	ProofBytes   []byte
 	WitnessBytes []byte
@@ -252,12 +255,14 @@ type Signature struct {
 
 // msg is the original tx data to be signed
 // sig is the marshalled Signature, including proof and witness data
+// CONTRACT: the first element in the Signature.WitnessBytes unmarshalled from the sigBytes is the
+// Message, which must be equal to the hash of the `msg` argument for this to be valid.
 func (v PubKey) VerifySignature(msg, sigBytes []byte) bool {
 
 	sig := new(Signature)
 	err := json.Unmarshal(sigBytes, sig)
 	if err != nil {
-		panic(err)
+		return false
 	}
 
 	// unmarshal sig into proof
@@ -275,7 +280,7 @@ func (v PubKey) VerifySignature(msg, sigBytes []byte) bool {
 
 	err = publicWitness.UnmarshalBinary(sig.WitnessBytes)
 	if err != nil {
-		panic(err)
+		return false
 	}
 
 	// first element in the vector is the Message
@@ -283,17 +288,18 @@ func (v PubKey) VerifySignature(msg, sigBytes []byte) bool {
 	msgElement := vec.(fr.Vector)[0] // !
 	msgBytes := msgElement.Bytes()
 
-	// check hash(msg) == sig.Message
+	// hash the msg to curve
 	msgHashed := GetMsgToSign(msg)
 
+	// check hash(msg) == sig.Message
 	if !bytes.Equal(msgHashed, msgBytes[:]) {
-		panic("msg not equal")
+		return false
 	}
 
 	vk := new(bn254.VerifyingKey)
 	_, err = vk.ReadFrom(bytes.NewBuffer(v.Key))
 	if err != nil {
-		panic(err)
+		return false
 	}
 
 	// verify the proof
@@ -327,16 +333,18 @@ func (v PubKey) Type() string {
 //-------
 // helper funcs
 
+// returns a test msg
 func GetMsg() []byte {
-
-	// note that the message is on 4 bytes
+	// base  message is 4 bytes
 	msgUnpadded := []byte{0xde, 0xad, 0xf0, 0x0d}
-	// msg expected to be 32 bytes
-	msg := make([]byte, 64)
+	// msg can be any size (even bigger than 32)
+	msg := make([]byte, 100)
+	// put it somewhere it crosses a 32-byte boundary for fun
 	copy(msg[28:], msgUnpadded)
 	return msg
 }
 
+// hash the msg to the curve using fr.Hash
 func GetMsgToSign(msg []byte) []byte {
 	elems, err := fr.Hash(msg, nil, 1)
 	if err != nil {
