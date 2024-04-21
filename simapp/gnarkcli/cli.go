@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -90,7 +91,7 @@ func signTx(cmd *cobra.Command, clientCtx client.Context, txf tx.Factory, newTx 
 	}
 
 	// TODO: dont hardcode, better interface for taking these
-	chainID := "bucky"
+	chainID := "my-zk-test-chain"
 	accNum := 1
 
 	//---------------------------
@@ -236,16 +237,24 @@ func signTx(cmd *cobra.Command, clientCtx client.Context, txf tx.Factory, newTx 
 	defer closeFunc()
 	clientCtx.WithOutput(cmd.OutOrStdout())
 
-	var json []byte
+	var jsonBytes []byte
 	printSignatureOnly := false
-	json, err = marshalSignatureJSON(txCfg, txBuilder, printSignatureOnly)
+	jsonBytes, err = marshalSignatureJSON(txCfg, txBuilder, printSignatureOnly)
 	if err != nil {
 		return err
 	}
 
-	cmd.Printf("%s\n", json)
+	cmd.Printf("%s\n", jsonBytes)
 
-	return err
+	var prettyJSON bytes.Buffer
+
+	// Pretty print the JSON
+	err = json.Indent(&prettyJSON, jsonBytes, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile("signed.json", prettyJSON.Bytes(), 0666)
 }
 
 func marshalSignatureJSON(txConfig client.TxConfig, txBldr client.TxBuilder, signatureOnly bool) ([]byte, error) {

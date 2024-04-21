@@ -7,6 +7,8 @@ It was inspired by my recent comment in the Celestia forum on adding ZK to the b
 It's an implementation of what I call an `e-snac` in there (an end-user snark
 account).
 
+[Get started right away][#let-me-play] or read on for how it works.
+
 ## Pubkey.Gnark
 
 The idea to add this to the SDK is quite simple. The SDK defines a generic
@@ -111,7 +113,9 @@ This is the address of your zk account!
 Lets save this address (whatever it spits out for you) for use later:
 
 ```
-export ADDR=cosmos1e9z5esedugxf9vlv9c7jh4df3lqkqakq3aap9k
+# replace with whatever your Bech32 Account Address is
+# eg. export ADDR=cosmos1e9z5esedugxf9vlv9c7jh4df3lqkqakq3aap9k
+export ADDR=< ... > 
 ```
 
 ### Setup a New Chain
@@ -134,16 +138,20 @@ a validator with it so the chain can run. It will also create an account with
 some `stake` for the new zk account we created.
 
 
-Now you can run the chain:
+Create a separate window (so you don't lose your $ADDR) and start the chain:
 
 ```
 simd start
 ```
 
-In another window, query the zk account. It should have a balance:
+Back in the original window, query the zk account. It should have a balance.
+Here's what I get:
 
 ```
-$simd query bank balance $ADDR
+$ simd query bank balances $ADDR
+balances:
+- amount: "100000"
+  denom: stake
 ```
 
 ### Generate, Sign, and Broadcast a Tx
@@ -196,6 +204,6 @@ And the balance from your zk account should have been reduced!
 simd query bank balances $ADDR
 ```
 
-CONGRATS! You just send a cosmos-sdk tx using a zk proof!
+CONGRATS! You just sent a cosmos-sdk tx using a zk proof!
 
 
