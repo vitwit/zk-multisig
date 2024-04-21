@@ -2,12 +2,8 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keys/gnark"
-
-	"github.com/consensys/gnark/backend/groth16"
-	bn254 "github.com/consensys/gnark/backend/groth16/bn254"
 )
 
 func main() {
@@ -22,31 +18,36 @@ func main() {
 
 	privateWitness, publicWitness := gnark.PrepareWitness(msg, signature)
 
-	buf := new(bytes.Buffer)
-	vk.WriteTo(buf)
+	vkBuf, pkBuf, csBuf := new(bytes.Buffer), new(bytes.Buffer), new(bytes.Buffer)
+	vk.WriteTo(vkBuf)
+	pk.WriteTo(pkBuf)
+	cs.WriteTo(csBuf)
 
-	verifier := gnark.PubKey{buf.Bytes()}
-
-	// generate the proof
-	proof, err := groth16.Prove(cs, pk, privateWitness)
+	// marshal the witness
+	privWitnessBytes, err := privateWitness.MarshalBinary()
 	if err != nil {
 		panic(err)
 	}
 
-	// marshal the proof
-	proofbn254 := proof.(*bn254.Proof)
-	proofBytes, err := json.Marshal(proofbn254)
+	verifier := gnark.PubKey{vkBuf.Bytes()}
+	prover := gnark.PrivKey{
+		ProvingKey:       pkBuf.Bytes(),
+		ConstraintSystem: csBuf.Bytes(),
+		VerifyingKey:     vkBuf.Bytes(),
+	}
+
+	proofBytes, err := prover.Sign(privWitnessBytes)
 	if err != nil {
 		panic(err)
 	}
 
 	// marshal the witness
-	witnessBytes, err := publicWitness.MarshalBinary()
+	pubWitnessBytes, err := publicWitness.MarshalBinary()
 	if err != nil {
 		panic(err)
 	}
 
-	valid := verifier.VerifySignature(witnessBytes, proofBytes)
+	valid := verifier.VerifySignature(pubWitnessBytes, proofBytes)
 	if !valid {
 		panic("invalid sig")
 	}

@@ -69,9 +69,13 @@ func (m *PubKey) GetKey() []byte {
 	return nil
 }
 
-// PrivKey defines a gnark proving key.
+// PrivKey defines a gnark proving key and constraint system.
+// It also keeps the verifying key since it cant be derived.
+// This is probably an abuse of the "private key" concept to store so much data in here, but c'est la vie.
 type PrivKey struct {
-	Key []byte `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	ProvingKey       []byte `protobuf:"bytes,1,opt,name=proving_key,json=provingKey,proto3" json:"proving_key,omitempty"`
+	ConstraintSystem []byte `protobuf:"bytes,2,opt,name=constraint_system,json=constraintSystem,proto3" json:"constraint_system,omitempty"`
+	VerifyingKey     []byte `protobuf:"bytes,3,opt,name=verifying_key,json=verifyingKey,proto3" json:"verifying_key,omitempty"`
 }
 
 func (m *PrivKey) Reset()         { *m = PrivKey{} }
@@ -107,9 +111,23 @@ func (m *PrivKey) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_PrivKey proto.InternalMessageInfo
 
-func (m *PrivKey) GetKey() []byte {
+func (m *PrivKey) GetProvingKey() []byte {
 	if m != nil {
-		return m.Key
+		return m.ProvingKey
+	}
+	return nil
+}
+
+func (m *PrivKey) GetConstraintSystem() []byte {
+	if m != nil {
+		return m.ConstraintSystem
+	}
+	return nil
+}
+
+func (m *PrivKey) GetVerifyingKey() []byte {
+	if m != nil {
+		return m.VerifyingKey
 	}
 	return nil
 }
@@ -122,7 +140,7 @@ func init() {
 func init() { proto.RegisterFile("cosmos/crypto/gnark/keys.proto", fileDescriptor_4cc43c6b0ddd42c7) }
 
 var fileDescriptor_4cc43c6b0ddd42c7 = []byte{
-	// 239 bytes of a gzipped FileDescriptorProto
+	// 311 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x4b, 0xce, 0x2f, 0xce,
 	0xcd, 0x2f, 0xd6, 0x4f, 0x2e, 0xaa, 0x2c, 0x28, 0xc9, 0xd7, 0x4f, 0xcf, 0x4b, 0x2c, 0xca, 0xd6,
 	0xcf, 0x4e, 0xad, 0x2c, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x12, 0x86, 0xc8, 0xeb, 0x41,
@@ -132,12 +150,17 @@ var fileDescriptor_4cc43c6b0ddd42c7 = []byte{
 	0x8c, 0x1a, 0x3c, 0x41, 0x20, 0xa6, 0x95, 0xee, 0x8c, 0x05, 0xf2, 0x0c, 0x5d, 0xcf, 0x37, 0x68,
 	0x89, 0x95, 0xa4, 0xe6, 0xa5, 0xa4, 0x16, 0xe5, 0x66, 0xe6, 0x95, 0xe8, 0x43, 0x54, 0xbb, 0x83,
 	0x6c, 0x99, 0xf4, 0x7c, 0x83, 0x16, 0x67, 0x76, 0x6a, 0x65, 0x7c, 0x5a, 0x66, 0x6a, 0x4e, 0x8a,
-	0x92, 0x3b, 0x17, 0x7b, 0x40, 0x51, 0x66, 0x19, 0x76, 0xb3, 0xb4, 0x40, 0xe6, 0x88, 0x23, 0x9b,
-	0x03, 0x51, 0x8a, 0xc5, 0x20, 0x27, 0x8f, 0x13, 0x8f, 0xe4, 0x18, 0x2f, 0x3c, 0x92, 0x63, 0x7c,
-	0xf0, 0x48, 0x8e, 0x71, 0xc2, 0x63, 0x39, 0x86, 0x0b, 0x8f, 0xe5, 0x18, 0x6e, 0x3c, 0x96, 0x63,
-	0x88, 0xd2, 0x4b, 0xcf, 0x2c, 0xc9, 0x28, 0x4d, 0xd2, 0x4b, 0xce, 0xcf, 0xd5, 0x87, 0x05, 0x0b,
-	0x98, 0xd2, 0x2d, 0x4e, 0xc9, 0x86, 0x85, 0x10, 0x28, 0x6c, 0x20, 0xc1, 0x94, 0xc4, 0x06, 0xf6,
-	0xa4, 0x31, 0x20, 0x00, 0x00, 0xff, 0xff, 0x4a, 0x6d, 0xf4, 0x6e, 0x44, 0x01, 0x00, 0x00,
+	0xd2, 0x0a, 0x46, 0x2e, 0xf6, 0x80, 0xa2, 0xcc, 0x32, 0x90, 0x61, 0xf2, 0x5c, 0xdc, 0x05, 0x45,
+	0xf9, 0x65, 0x99, 0x79, 0xe9, 0xf1, 0x08, 0x43, 0xb9, 0xa0, 0x42, 0x20, 0x05, 0xda, 0x5c, 0x82,
+	0xc9, 0xf9, 0x79, 0xc5, 0x25, 0x45, 0x89, 0x99, 0x79, 0x25, 0xf1, 0xc5, 0x95, 0xc5, 0x25, 0xa9,
+	0xb9, 0x12, 0x4c, 0x60, 0x65, 0x02, 0x08, 0x89, 0x60, 0xb0, 0xb8, 0x90, 0x32, 0x17, 0x6f, 0x59,
+	0x6a, 0x51, 0x66, 0x5a, 0x25, 0xcc, 0x3c, 0x66, 0xb0, 0x42, 0x1e, 0xb8, 0xa0, 0x77, 0x6a, 0xa5,
+	0x95, 0x16, 0xc8, 0xa5, 0xe2, 0xc8, 0x2e, 0x85, 0xb8, 0x05, 0x8b, 0x53, 0x9d, 0x3c, 0x4e, 0x3c,
+	0x92, 0x63, 0xbc, 0xf0, 0x48, 0x8e, 0xf1, 0xc1, 0x23, 0x39, 0xc6, 0x09, 0x8f, 0xe5, 0x18, 0x2e,
+	0x3c, 0x96, 0x63, 0xb8, 0xf1, 0x58, 0x8e, 0x21, 0x4a, 0x2f, 0x3d, 0xb3, 0x24, 0xa3, 0x34, 0x49,
+	0x2f, 0x39, 0x3f, 0x57, 0x1f, 0x16, 0xf0, 0x60, 0x4a, 0xb7, 0x38, 0x25, 0x1b, 0x16, 0x07, 0xa0,
+	0xd0, 0x87, 0x44, 0x44, 0x12, 0x1b, 0x38, 0x18, 0x8d, 0x01, 0x01, 0x00, 0x00, 0xff, 0xff, 0x09,
+	0x9a, 0x6b, 0x2e, 0xa6, 0x01, 0x00, 0x00,
 }
 
 func (m *PubKey) Marshal() (dAtA []byte, err error) {
@@ -190,10 +213,24 @@ func (m *PrivKey) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Key) > 0 {
-		i -= len(m.Key)
-		copy(dAtA[i:], m.Key)
-		i = encodeVarintKeys(dAtA, i, uint64(len(m.Key)))
+	if len(m.VerifyingKey) > 0 {
+		i -= len(m.VerifyingKey)
+		copy(dAtA[i:], m.VerifyingKey)
+		i = encodeVarintKeys(dAtA, i, uint64(len(m.VerifyingKey)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.ConstraintSystem) > 0 {
+		i -= len(m.ConstraintSystem)
+		copy(dAtA[i:], m.ConstraintSystem)
+		i = encodeVarintKeys(dAtA, i, uint64(len(m.ConstraintSystem)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.ProvingKey) > 0 {
+		i -= len(m.ProvingKey)
+		copy(dAtA[i:], m.ProvingKey)
+		i = encodeVarintKeys(dAtA, i, uint64(len(m.ProvingKey)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -230,7 +267,15 @@ func (m *PrivKey) Size() (n int) {
 	}
 	var l int
 	_ = l
-	l = len(m.Key)
+	l = len(m.ProvingKey)
+	if l > 0 {
+		n += 1 + l + sovKeys(uint64(l))
+	}
+	l = len(m.ConstraintSystem)
+	if l > 0 {
+		n += 1 + l + sovKeys(uint64(l))
+	}
+	l = len(m.VerifyingKey)
 	if l > 0 {
 		n += 1 + l + sovKeys(uint64(l))
 	}
@@ -358,7 +403,7 @@ func (m *PrivKey) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Key", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ProvingKey", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -385,9 +430,77 @@ func (m *PrivKey) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Key = append(m.Key[:0], dAtA[iNdEx:postIndex]...)
-			if m.Key == nil {
-				m.Key = []byte{}
+			m.ProvingKey = append(m.ProvingKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.ProvingKey == nil {
+				m.ProvingKey = []byte{}
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ConstraintSystem", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKeys
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthKeys
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthKeys
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ConstraintSystem = append(m.ConstraintSystem[:0], dAtA[iNdEx:postIndex]...)
+			if m.ConstraintSystem == nil {
+				m.ConstraintSystem = []byte{}
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field VerifyingKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKeys
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthKeys
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthKeys
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.VerifyingKey = append(m.VerifyingKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.VerifyingKey == nil {
+				m.VerifyingKey = []byte{}
 			}
 			iNdEx = postIndex
 		default:

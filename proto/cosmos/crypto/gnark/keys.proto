@@ -16,10 +16,14 @@ message PubKey {
   bytes key = 1;
 }
 
-// PrivKey defines a gnark proving key.
+// PrivKey defines a gnark proving key and constraint system.
+// It also keeps the verifying key since it cant be derived.
+// This is probably an abuse of the "private key" concept to store so much data in here, but c'est la vie.
 message PrivKey {
   option (amino.name)             = "tendermint/PrivKeyGnark";
   option (amino.message_encoding) = "key_field";
 
-  bytes key = 1;
+  bytes proving_key = 1;
+  bytes constraint_system = 2;
+  bytes verifying_key = 3;
 }

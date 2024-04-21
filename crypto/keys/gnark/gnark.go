@@ -3,6 +3,7 @@ package gnark
 import (
 	"bytes"
 	crand "crypto/rand"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 
@@ -38,6 +39,10 @@ import (
 	"github.com/consensys/gnark/std/hash/mimc"
 )
 
+const (
+	keyType = "groth16.bn254"
+)
+
 type eddsaCircuit struct {
 	Signature eddsa.Signature   `gnark:",public"`
 	Message   frontend.Variable `gnark:",public"`
@@ -66,13 +71,75 @@ func (circuit *eddsaCircuit) defineWithPubkey(pubkey eddsa.PublicKey) func(front
 	}
 }
 
-// Private Key
-type Prover struct {
-	pk groth16.ProvingKey
+//----------
+// PrivKey (Prover)
+
+var (
+	_ cryptotypes.PrivKey = &PrivKey{}
+)
+
+func (p PrivKey) Bytes() []byte {
+	return p.ProvingKey
+}
+
+// msg is the private witness.
+// returns the proof
+func (p PrivKey) Sign(msg []byte) ([]byte, error) {
+
+	cs := groth16.NewCS(ecc.BN254)
+	_, err := cs.ReadFrom(bytes.NewBuffer(p.ConstraintSystem))
+	if err != nil {
+		return nil, err
+	}
+
+	pk := new(bn254.ProvingKey)
+	_, err = pk.ReadFrom(bytes.NewBuffer(p.ProvingKey))
+	if err != nil {
+		return nil, err
+	}
+
+	// create new witness and unmarshal msg
+	privateWitness, err := witness.New(ecc.BN254.ScalarField())
+	if err != nil {
+		return nil, err
+	}
+
+	err = privateWitness.UnmarshalBinary(msg)
+	if err != nil {
+		return nil, err
+	}
+
+	// generate the proof
+	proof, err := groth16.Prove(cs, pk, privateWitness)
+	if err != nil {
+		return nil, err
+	}
+
+	// marshal the proof
+	proofbn254 := proof.(*bn254.Proof)
+	proofBytes, err := json.Marshal(proofbn254)
+	if err != nil {
+		return nil, err
+	}
+
+	return proofBytes, nil
+}
+
+func (p PrivKey) PubKey() cryptotypes.PubKey {
+	return &PubKey{p.VerifyingKey}
+}
+
+func (p PrivKey) Equals(other cryptotypes.LedgerPrivKey) bool {
+	return p.Type() == other.Type() && subtle.ConstantTimeCompare(p.Bytes(), other.Bytes()) == 1
+}
+
+func (p PrivKey) Type() string {
+	return keyType
 }
 
 // -----------
 // PubKey - verifier
+
 var (
 	_ cryptotypes.PubKey = &PubKey{}
 )
@@ -130,7 +197,7 @@ func (v PubKey) Equals(other cryptotypes.PubKey) bool {
 }
 
 func (v PubKey) Type() string {
-	return "groth16.bn254"
+	return keyType
 }
 
 //-------
