@@ -44,7 +44,7 @@ import (
 
 type eddsaCircuit struct {
 	Message   frontend.Variable `gnark:",public"`
-	Signature eddsa.Signature   `gnark:",public"`
+	Signature eddsa.Signature
 
 	// we use a closure for the Define method so we can hardcode the public key into the circuit
 	define func(api frontend.API) error
