@@ -7,7 +7,7 @@ It was inspired by my recent comment in the Celestia forum on adding ZK to the b
 It's an implementation of what I call an `e-snac` in there (an end-user snark
 account).
 
-[Get started right away][#let-me-play] or read on for how it works.
+[Get started right away](#let-me-play) or read on for how it works.
 
 ## Pubkey.Gnark
 
