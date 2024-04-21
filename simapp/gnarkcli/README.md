@@ -1,6 +1,6 @@
 # gnarkcli
 
-This is a demo of adding a zk account type to the SDK.
+This is a demo of adding a zk account type to the SDK (v0.50) using [gnark](https://github.com/Consensys/gnark) (groth16 and bn254).
 
 It was inspired by my recent comment in the Celestia forum on adding ZK to the base layer: https://forum.celestia.org/t/celestia-snark-accounts-design-spec/1639/9?u=ebuchman
 
@@ -85,12 +85,23 @@ Certainly.
 
 ### Install Simd
 
-First, install the `simd` binary. From the root:
+If you don't already have a copy of the Cosmos-SDK locally, clone it: `git clone https://github.com/cosmos/cosmos-sdk`.
+
+Now fetch this fork and check out the `gnark50` branch. From your local Cosmos-SDK repo:
+
+```
+git remote add informal https://github.com/informalsystems/cosmos-sdk
+git fetch informal gnark50
+```
+
+Now, install the modified `simd` binary. From the root:
 
 ```
 cd simapp
 go install ./simd
 ```
+
+You should now have a `simd` that supports the new zk account using gnark!
 
 ### Compile the Circuit
 
