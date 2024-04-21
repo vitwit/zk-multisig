@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"testing"
+
+	// use the example eddsa circuit
+	"github.com/cosmos/cosmos-sdk/crypto/keys/gnark/eddsa"
 )
 
 func TestGnark(t *testing.T) {
 
-	privateKey, publicKey := GenKeys()
+	privateKey, publicKey := eddsa.GenKeys()
 
-	pk, vk, cs := CompileCircuit(publicKey)
+	pk, vk, cs := eddsa.CompileCircuit(publicKey)
 
 	// get the byte representation of the circuit
 	vkBuf, pkBuf, csBuf := new(bytes.Buffer), new(bytes.Buffer), new(bytes.Buffer)
@@ -30,10 +33,10 @@ func TestGnark(t *testing.T) {
 	msg := GetMsg()
 
 	// eddsa sign it
-	msgToSign, signature := SignMsg(privateKey, msg)
+	msgToSign, signature := eddsa.SignMsg(privateKey, msg)
 
 	// prepare witness of the msg signed and signature
-	privateWitness, publicWitness := PrepareWitness(msgToSign, signature)
+	privateWitness, publicWitness := eddsa.PrepareWitness(msgToSign, signature)
 
 	// marshal the priv witness for proving
 	privWitnessBytes, err := privateWitness.MarshalBinary()

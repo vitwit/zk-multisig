@@ -41,6 +41,9 @@ as these were easy to get started with. In principle we could add other pairs of
 proving system and curve, though these should likely be their own separate
 modules and pubkey types. 
 
+To that effect, the module and the key type really shouldnt be called `gnark`,
+but probably `groth16bn254` or something like that ... LM.
+
 Note groth16 requires a trusted setup. In this case, the setup is done independently for each account 
 by the users of the account. Since each account can define its own circuit, a
 new setup must be done each time. For accounts designed to be used by many
