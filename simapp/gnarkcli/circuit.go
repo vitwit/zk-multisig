@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/cosmos/cosmos-sdk/crypto/keys/gnark"
 )
 
@@ -31,7 +33,9 @@ func main() {
 
 	ioutil.WriteFile("keys/priv", privateKey.Bytes(), 0666)
 
-	fmt.Println("Address", verifier.Address())
+	fmt.Println("Hex Account Address", verifier.Address())
+	fmt.Printf("Bech32 Account Address: %s\n", sdk.AccAddress(verifier.Address()))
+
 	ioutil.WriteFile("keys/vk", verifier.Key, 0666)
 	ioutil.WriteFile("keys/pk", prover.ProvingKey, 0666)
 	ioutil.WriteFile("keys/cs", prover.ConstraintSystem, 0666)

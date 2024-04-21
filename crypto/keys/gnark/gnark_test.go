@@ -3,7 +3,6 @@ package gnark
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"testing"
 )
 
