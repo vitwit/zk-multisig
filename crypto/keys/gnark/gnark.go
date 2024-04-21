@@ -22,6 +22,9 @@ import (
 	// curve
 	bn254 "github.com/consensys/gnark/backend/groth16/bn254"
 
+	// hash to curve
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
+
 	// signature
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/signature"
@@ -42,6 +45,10 @@ import (
 const (
 	keyType = "groth16.bn254"
 )
+
+type BaseCircuit struct {
+	Message frontend.Variable `gnark:",public"`
+}
 
 type eddsaCircuit struct {
 	Signature eddsa.Signature   `gnark:",public"`
@@ -144,18 +151,40 @@ var (
 	_ cryptotypes.PubKey = &PubKey{}
 )
 
-// msg is the public witness
-// sig is the proof
-func (v PubKey) VerifySignature(msg, sig []byte) bool {
+type Signature struct {
+	Proof []byte
+
+	EddsaSignature []byte
+	Message        []byte
+}
+
+// msg is the original tx data to be signed
+// sig is the marshalled Signature, including proof and witness data
+func (v PubKey) VerifySignature(msg, sigBytes []byte) bool {
+
+	sig := new(Signature)
+	err := json.Unmarshal(sigBytes, sig)
+	if err != nil {
+		panic(err)
+	}
+
+	// check hash(msg) == sig.Message
+	msgHashed := GetMsgToSign(msg)
+	if !bytes.Equal(msgHashed, sig.Message) {
+		panic("msg not equal")
+	}
+
+	// prepare witness
+	_, publicWitness := PrepareWitness(sig.Message, sig.EddsaSignature)
 
 	// unmarshal sig into proof
 	proof := new(bn254.Proof)
-	err := json.Unmarshal(sig, proof)
+	err = json.Unmarshal(sig.Proof, proof)
 	if err != nil {
 		return false
 	}
 
-	// create new witness and unmarshal msg
+	/*// create new witness and unmarshal msg
 	publicWitness, err := witness.New(ecc.BN254.ScalarField())
 	if err != nil {
 		return false
@@ -164,7 +193,7 @@ func (v PubKey) VerifySignature(msg, sig []byte) bool {
 	err = publicWitness.UnmarshalBinary(msg)
 	if err != nil {
 		panic(err)
-	}
+	}*/
 
 	vk := new(bn254.VerifyingKey)
 	_, err = vk.ReadFrom(bytes.NewBuffer(v.Key))
@@ -208,7 +237,7 @@ func GetMsg() []byte {
 	// note that the message is on 4 bytes
 	msgUnpadded := []byte{0xde, 0xad, 0xf0, 0x0d}
 	// msg expected to be 32 bytes
-	msg := make([]byte, 32)
+	msg := make([]byte, 64)
 	copy(msg[28:], msgUnpadded)
 	return msg
 }
@@ -224,19 +253,32 @@ func GenKeys() (signature.Signer, signature.PublicKey) {
 	return privateKey, publicKey
 }
 
-func SignMsg(privateKey signature.Signer, msg []byte) []byte {
+func GetMsgToSign(msg []byte) []byte {
+	elems, err := fr.Hash(msg, nil, 1)
+	if err != nil {
+		panic(err)
+	}
+	elb := elems[0].Bytes()
+	msgToSign := elb[:]
+	return msgToSign
+}
+
+// returns msgToSign and signature
+func SignMsg(privateKey signature.Signer, msg []byte) ([]byte, []byte) {
 
 	// instantiate hash function
 	hFunc := hash.MIMC_BN254.New()
 
+	msgToSign := GetMsgToSign(msg)
+
 	// sign the message
-	signature, err := privateKey.Sign(msg, hFunc)
+	signature, err := privateKey.Sign(msgToSign, hFunc)
 	if err != nil {
 		panic(err)
 	}
 
 	// verifies signature
-	isValid, err := privateKey.Public().Verify(signature, msg, hFunc)
+	isValid, err := privateKey.Public().Verify(signature, msgToSign, hFunc)
 	if err != nil {
 		panic(err)
 	}
@@ -245,7 +287,7 @@ func SignMsg(privateKey signature.Signer, msg []byte) []byte {
 	} else {
 		fmt.Println("1. valid signature")
 	}
-	return signature
+	return msgToSign, signature
 }
 
 func CompileCircuit(publicKey signature.PublicKey) (groth16.ProvingKey, groth16.VerifyingKey, constraint.ConstraintSystem) {

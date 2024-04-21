@@ -2,6 +2,8 @@ package gnark
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"testing"
 )
 
@@ -9,24 +11,12 @@ func TestGnark(t *testing.T) {
 
 	privateKey, publicKey := GenKeys()
 
-	msg := GetMsg()
-
-	signature := SignMsg(privateKey, msg)
-
 	pk, vk, cs := CompileCircuit(publicKey)
-
-	privateWitness, publicWitness := PrepareWitness(msg, signature)
 
 	vkBuf, pkBuf, csBuf := new(bytes.Buffer), new(bytes.Buffer), new(bytes.Buffer)
 	vk.WriteTo(vkBuf)
 	pk.WriteTo(pkBuf)
 	cs.WriteTo(csBuf)
-
-	// marshal the witness
-	privWitnessBytes, err := privateWitness.MarshalBinary()
-	if err != nil {
-		panic(err)
-	}
 
 	verifier := PubKey{vkBuf.Bytes()}
 	prover := PrivKey{
@@ -35,18 +25,43 @@ func TestGnark(t *testing.T) {
 		VerifyingKey:     vkBuf.Bytes(),
 	}
 
+	msg := GetMsg()
+	fmt.Println(msg)
+	fmt.Println(len(msg))
+
+	msgToSign, signature := SignMsg(privateKey, msg)
+
+	privateWitness, _ := PrepareWitness(msgToSign, signature)
+
+	// marshal the witness
+	privWitnessBytes, err := privateWitness.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}
+
 	proofBytes, err := prover.Sign(privWitnessBytes)
 	if err != nil {
 		panic(err)
 	}
 
 	// marshal the witness
-	pubWitnessBytes, err := publicWitness.MarshalBinary()
+	/*pubWitnessBytes, err := publicWitness.MarshalBinary()
+	if err != nil {
+		panic(err)
+	}*/
+
+	sig := Signature{
+		Proof:          proofBytes,
+		EddsaSignature: signature,
+		Message:        msgToSign,
+	}
+
+	sigBytes, err := json.Marshal(sig)
 	if err != nil {
 		panic(err)
 	}
 
-	valid := verifier.VerifySignature(pubWitnessBytes, proofBytes)
+	valid := verifier.VerifySignature(msg, sigBytes)
 	if !valid {
 		panic("invalid sig")
 	}
