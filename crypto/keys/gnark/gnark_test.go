@@ -31,7 +31,7 @@ func TestGnark(t *testing.T) {
 
 	msgToSign, signature := SignMsg(privateKey, msg)
 
-	privateWitness, _ := PrepareWitness(msgToSign, signature)
+	privateWitness, publicWitness := PrepareWitness(msgToSign, signature)
 
 	// marshal the witness
 	privWitnessBytes, err := privateWitness.MarshalBinary()
@@ -45,15 +45,16 @@ func TestGnark(t *testing.T) {
 	}
 
 	// marshal the witness
-	/*pubWitnessBytes, err := publicWitness.MarshalBinary()
+	pubWitnessBytes, err := publicWitness.MarshalBinary()
 	if err != nil {
 		panic(err)
-	}*/
+	}
 
 	sig := Signature{
-		Proof:          proofBytes,
-		EddsaSignature: signature,
-		Message:        msgToSign,
+		ProofBytes:   proofBytes,
+		WitnessBytes: pubWitnessBytes,
+		/*EddsaSignature: signature,
+		Message:        msgToSign,*/
 	}
 
 	sigBytes, err := json.Marshal(sig)

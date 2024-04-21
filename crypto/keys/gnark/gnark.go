@@ -46,13 +46,21 @@ const (
 	keyType = "groth16.bn254"
 )
 
-type BaseCircuit struct {
-	Message frontend.Variable `gnark:",public"`
-}
+//-------
+// define a specific circuit
+// this should be independent of this key implementation and can move elsewhere
+// the Pubkey/Privkey defined here should not depend on the circuit at all
+//
+// only requirement: the circuit MUST begin with the Message (hash of the tx signBytes)
+// this is necessary so we can hash the tx bytes in VerifySignature and check they're equal to what's in the witness
+//
+// This circuit is just a simple signel eddsa signature with a single public key that is part of the circuit.
+// Kind of useless, but helpful for initial testing.
+// TODO: generalize it to a multisig case, or to other more interesting cases
 
 type eddsaCircuit struct {
-	Signature eddsa.Signature   `gnark:",public"`
 	Message   frontend.Variable `gnark:",public"`
+	Signature eddsa.Signature   `gnark:",public"`
 
 	define func(api frontend.API) error
 }
@@ -76,6 +84,92 @@ func (circuit *eddsaCircuit) defineWithPubkey(pubkey eddsa.PublicKey) func(front
 		// verify the signature in the cs
 		return eddsa.Verify(curve, circuit.Signature, circuit.Message, pubkey, &mimc)
 	}
+}
+
+func CompileCircuit(publicKey signature.PublicKey) (groth16.ProvingKey, groth16.VerifyingKey, constraint.ConstraintSystem) {
+	var circuit eddsaCircuit
+
+	// assign public key values
+	// fixed pubkey should be part of circuit
+	var pubKey eddsa.PublicKey
+	_publicKey := publicKey.Bytes()
+	pubKey.Assign(tedwards.BN254, _publicKey[:32])
+	circuit.define = circuit.defineWithPubkey(pubKey)
+
+	cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+	if err != nil {
+		panic(err)
+	}
+
+	pk, vk, err := groth16.Setup(cs)
+	if err != nil {
+		panic(err)
+	}
+
+	return pk, vk, cs
+
+}
+
+func PrepareWitness(msg, signature []byte) (witness.Witness, witness.Witness) {
+	// declare the witness
+	var assignment eddsaCircuit
+
+	// assign message value
+	assignment.Message = msg
+
+	// assign signature values
+	assignment.Signature.Assign(tedwards.BN254, signature)
+
+	// witness
+	witness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
+	if err != nil {
+		panic(err)
+	}
+	publicWitness, err := witness.Public()
+	if err != nil {
+		panic(err)
+	}
+
+	return witness, publicWitness
+
+}
+
+func GenKeys() (signature.Signer, signature.PublicKey) {
+	// create a eddsa key pair
+	privateKey, err := eddsacrypto.New(tedwards.BN254, crand.Reader)
+	if err != nil {
+		panic(err)
+	}
+	publicKey := privateKey.Public()
+
+	return privateKey, publicKey
+}
+
+// returns msgToSign and signature
+func SignMsg(privateKey signature.Signer, msg []byte) ([]byte, []byte) {
+
+	// instantiate hash function
+	hFunc := hash.MIMC_BN254.New()
+
+	msgToSign := GetMsgToSign(msg)
+
+	// sign the message
+	signature, err := privateKey.Sign(msgToSign, hFunc)
+	if err != nil {
+		panic(err)
+	}
+
+	// verifies signature
+	isValid, err := privateKey.Public().Verify(signature, msgToSign, hFunc)
+	if err != nil {
+		panic(err)
+	}
+	if !isValid {
+		fmt.Println("1. invalid signature")
+	} else {
+		fmt.Println("1. valid signature")
+	}
+	return msgToSign, signature
 }
 
 //----------
@@ -152,10 +246,8 @@ var (
 )
 
 type Signature struct {
-	Proof []byte
-
-	EddsaSignature []byte
-	Message        []byte
+	ProofBytes   []byte
+	WitnessBytes []byte
 }
 
 // msg is the original tx data to be signed
@@ -168,32 +260,35 @@ func (v PubKey) VerifySignature(msg, sigBytes []byte) bool {
 		panic(err)
 	}
 
-	// check hash(msg) == sig.Message
-	msgHashed := GetMsgToSign(msg)
-	if !bytes.Equal(msgHashed, sig.Message) {
-		panic("msg not equal")
-	}
-
-	// prepare witness
-	_, publicWitness := PrepareWitness(sig.Message, sig.EddsaSignature)
-
 	// unmarshal sig into proof
 	proof := new(bn254.Proof)
-	err = json.Unmarshal(sig.Proof, proof)
+	err = json.Unmarshal(sig.ProofBytes, proof)
 	if err != nil {
 		return false
 	}
 
-	/*// create new witness and unmarshal msg
+	// create new witness and unmarshal msg
 	publicWitness, err := witness.New(ecc.BN254.ScalarField())
 	if err != nil {
 		return false
 	}
 
-	err = publicWitness.UnmarshalBinary(msg)
+	err = publicWitness.UnmarshalBinary(sig.WitnessBytes)
 	if err != nil {
 		panic(err)
-	}*/
+	}
+
+	// first element in the vector is the Message
+	vec := publicWitness.Vector()
+	msgElement := vec.(fr.Vector)[0] // !
+	msgBytes := msgElement.Bytes()
+
+	// check hash(msg) == sig.Message
+	msgHashed := GetMsgToSign(msg)
+
+	if !bytes.Equal(msgHashed, msgBytes[:]) {
+		panic("msg not equal")
+	}
 
 	vk := new(bn254.VerifyingKey)
 	_, err = vk.ReadFrom(bytes.NewBuffer(v.Key))
@@ -242,17 +337,6 @@ func GetMsg() []byte {
 	return msg
 }
 
-func GenKeys() (signature.Signer, signature.PublicKey) {
-	// create a eddsa key pair
-	privateKey, err := eddsacrypto.New(tedwards.BN254, crand.Reader)
-	if err != nil {
-		panic(err)
-	}
-	publicKey := privateKey.Public()
-
-	return privateKey, publicKey
-}
-
 func GetMsgToSign(msg []byte) []byte {
 	elems, err := fr.Hash(msg, nil, 1)
 	if err != nil {
@@ -261,79 +345,4 @@ func GetMsgToSign(msg []byte) []byte {
 	elb := elems[0].Bytes()
 	msgToSign := elb[:]
 	return msgToSign
-}
-
-// returns msgToSign and signature
-func SignMsg(privateKey signature.Signer, msg []byte) ([]byte, []byte) {
-
-	// instantiate hash function
-	hFunc := hash.MIMC_BN254.New()
-
-	msgToSign := GetMsgToSign(msg)
-
-	// sign the message
-	signature, err := privateKey.Sign(msgToSign, hFunc)
-	if err != nil {
-		panic(err)
-	}
-
-	// verifies signature
-	isValid, err := privateKey.Public().Verify(signature, msgToSign, hFunc)
-	if err != nil {
-		panic(err)
-	}
-	if !isValid {
-		fmt.Println("1. invalid signature")
-	} else {
-		fmt.Println("1. valid signature")
-	}
-	return msgToSign, signature
-}
-
-func CompileCircuit(publicKey signature.PublicKey) (groth16.ProvingKey, groth16.VerifyingKey, constraint.ConstraintSystem) {
-	var circuit eddsaCircuit
-
-	// assign public key values
-	// fixed pubkey should be part of circuit
-	var pubKey eddsa.PublicKey
-	_publicKey := publicKey.Bytes()
-	pubKey.Assign(tedwards.BN254, _publicKey[:32])
-	circuit.define = circuit.defineWithPubkey(pubKey)
-
-	cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
-	if err != nil {
-		panic(err)
-	}
-
-	pk, vk, err := groth16.Setup(cs)
-	if err != nil {
-		panic(err)
-	}
-
-	return pk, vk, cs
-
-}
-
-func PrepareWitness(msg, signature []byte) (witness.Witness, witness.Witness) {
-	// declare the witness
-	var assignment eddsaCircuit
-
-	// assign message value
-	assignment.Message = msg
-
-	// assign signature values
-	assignment.Signature.Assign(tedwards.BN254, signature)
-
-	// witness
-	witness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())
-	if err != nil {
-		panic(err)
-	}
-	publicWitness, err := witness.Public()
-	if err != nil {
-		panic(err)
-	}
-
-	return witness, publicWitness
-
 }
