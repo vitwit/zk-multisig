@@ -1,0 +1,25 @@
+syntax = "proto3";
+package cosmos.crypto.gnark;
+
+import "amino/amino.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/cosmos/cosmos-sdk/crypto/keys/gnark";
+
+// PubKey defines a gnark verifying key.
+// TODO describe
+message PubKey {
+  option (amino.name) = "tendermint/PubKeyGnark";
+  option (amino.message_encoding)     = "key_field";
+  option (gogoproto.goproto_stringer) = false;
+
+  bytes key = 1;
+}
+
+// PrivKey defines a gnark proving key.
+message PrivKey {
+  option (amino.name)             = "tendermint/PrivKeyGnark";
+  option (amino.message_encoding) = "key_field";
+
+  bytes key = 1;
+}
