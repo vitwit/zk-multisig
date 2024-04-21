@@ -87,21 +87,24 @@ Certainly.
 
 If you don't already have a copy of the Cosmos-SDK locally, clone it: `git clone https://github.com/cosmos/cosmos-sdk`.
 
-Now fetch this fork and check out the `gnark50` branch. From your local Cosmos-SDK repo:
+Now from the SDK repo, fetch this fork and check out the `gnark50` branch. From your local Cosmos-SDK repo:
 
 ```
 git remote add informal https://github.com/informalsystems/cosmos-sdk
 git fetch informal gnark50
+git checkout informal/gnark50
 ```
 
-Now, install the modified `simd` binary. From the root:
+Now, install the modified `simd` binary. `simd` is the SDK's built in example application. We can use it to test new functionality.
+
+From the SDK repo (make sure you're on our branch):
 
 ```
 cd simapp
 go install ./simd
 ```
 
-You should now have a `simd` that supports the new zk account using gnark!
+You should now have a `simd` that supports the new zk account using gnark! 
 
 ### Compile the Circuit
 
@@ -155,6 +158,7 @@ some `stake` for the new zk account we created.
 Create a separate window (so you don't lose your $ADDR) and start the chain:
 
 ```
+# in a new window!
 simd start
 ```
 
@@ -195,7 +199,7 @@ go run cli.go 0
 
 The 0 is the sequence number, and should be incremented if you do subsequent
 txs. Everything else is hardcoded in the `cli.go` file. This command will write
-a signed version of the tx to `signed.json`. Check out the large pubkey and
+a signed version of the tx to `signed.json` (it will also dump it to your screen). Check out the large pubkey and
 signature in that tx!
 
 Finally we can broadcast the tx:
