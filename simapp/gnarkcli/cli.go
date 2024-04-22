@@ -13,7 +13,13 @@ import (
 
 func main() {
 
-	//---------------------------
+	// setup
+	signer, signBytes, err := gnarksigner.InitSigner()
+	if err != nil {
+		panic(err)
+	}
+
+	//------------------------------------
 	// circuit specific
 
 	// read in and init the eddsa key. we sign with this key and then prove we did so.
@@ -27,25 +33,14 @@ func main() {
 	privKey := new(eddsa.PrivateKey)
 	privKey.SetBytes(privBytes)
 
-	//--------------------------------
-	// general
-
-	signer, signBytes, err := gnarksigner.InitSigner()
-	if err != nil {
-		panic(err)
-	}
-
-	//---------------
-	// circuit specific
-
 	// sign with the hidden key and get the hashed msg
 	msgToSign, signatureBytes := gnarkeddsa.SignMsg(privKey, signBytes)
 
 	// prepare the witness for zk proof
 	privateWitness, publicWitness := gnarkeddsa.PrepareWitness(msgToSign, signatureBytes)
 
-	//--------
-	// general
+	//------------------------------------
 
+	// sign
 	gnarksigner.SignTx(signer, privateWitness, publicWitness)
 }
