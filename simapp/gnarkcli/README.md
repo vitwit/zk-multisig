@@ -16,8 +16,8 @@ PubKey interface, and every account has a PubKey. So the idea here is to define
 a new PubKey type that is actually a zk verification key. This way we require
 the absolute minimum number of changes to the SDK - no changes to the account
 structure or anything else really, just a new PubKey type, defined in
-`crypto/keys/gnark`, with the corresponding proto file in
-`proto/cosmos/crypto/gnark`.
+[`crypto/keys/gnark`](https://github.com/informalsystems/cosmos-sdk/tree/gnark50/crypto/keys/gnark), with the corresponding proto file in
+[`proto/cosmos/crypto/gnark`](https://github.com/informalsystems/cosmos-sdk/blob/gnark50/proto/cosmos/crypto/gnark/keys.proto).
 
 There is also a corresponding PrivKey type, which just wraps the circuit's
 underlying proving key and constraint system. Everything is implemented using
@@ -66,7 +66,7 @@ constraint system. This means users can play with new circuits without having to
 recompile the main chain binary or update the chain (!). Of course since we use
 groth16 for now they need to do a trusted setup for each new circuit.
 
-There is an example circuit in `crypto/keys/gnark/eddsa`. It's a simple eddsa
+There is an example circuit in [`crypto/keys/gnark/eddsa`](https://github.com/informalsystems/cosmos-sdk/blob/gnark50/crypto/keys/gnark/eddsa/eddsa.go#L35). It's a simple eddsa
 signature from a single key. This has the same functionality as a normal SDK
 signature, except the underlying public key is never revealed, and instead of
 verifying the eddsa signature directly on chain, a zero knowledge proof of the
