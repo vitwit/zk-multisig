@@ -223,7 +223,8 @@ go run cli.go 0
 The 0 is the sequence number, and should be incremented if you do subsequent
 txs. Everything else is hardcoded in the `cli.go` file. This command will write
 a signed version of the tx to `signed.json` (it will also dump it to your screen). Check out the large pubkey and
-signature in that tx!
+signature in that tx! The pubkey in there is the circuit's verification key and
+the signature is the zk proof and the witness data.
 
 Finally we can broadcast the tx:
 
@@ -248,17 +249,16 @@ simd query bank balances $ADDR
 Finally, you can see that the verification key is now stored in the account on-chain:
 
 ```
-$simd query auth account $ADDR
+$ simd query auth account $ADDR
 account:
   type: cosmos-sdk/BaseAccount
-    value:
-        account_number: "1"
-            address: cosmos1e9z5esedugxf9vlv9c7jh4df3lqkqakq3aap9k
-                public_key:
-                      type: tendermint/PubKeyGnark
-                            value:
-                            gwlWvpboM9nw6tMuQO3NZfRusby0JSyCRixtCl9u19GXuYqEbUcu4DsmD33HsZJZGSY5OciPngJjCsVJApP1lMwlgSxnj76uWByubqW5L1U0uuxOVeiCHWjuUh0C7SOYIWOWi3ImUtaPofWlIAow7R+BM+2apomHYgANcZzC4zaJUzOHzj2naIehkSQIzh801zpynDgblOg3EWXv07pHUxa2YxpYoe9B/fVijZacfSq2GjNHygjzC/N4ML+z4XKLp6SrsKGZMOK7Jr3svLNc3ZAitK/vTpxX+CPXwFat8CeB26duYGX12bdhhjMz0THXj6J7Nfe/ZXJAbSX/v2rhKCsISheVtUvGldKVbch6CgIGKngB5GxKDu3eJpc/mMxBAAAAAoajg7mPEk5YI6K4MrxPZXT8XkXZBu8V7gZVOelj+BD7ghL21RYtkPx4y7Z1JZjUZmAT0ozkj9x9idOJxPmw2IAAAAAAiev2BQt5xKlt+vpi+lkupiYY5BE8ernBf/siNEBj7sEaYitadZcMSLFRbEfRBJuVkJ5RTgVPGajg8itPThmcQsg3QRrylTdsD9C17llRR1M+Lp19EXm8YDb9wEQuNKuwAp92/dq/7kpaqRLF8C51v4pvpLIXpWNtPFYnSLX0jsk=
-                                sequence: "1"
+  value:
+    account_number: "1"
+    address: cosmos1e9z5esedugxf9vlv9c7jh4df3lqkqakq3aap9k
+    public_key:
+      type: tendermint/PubKeyGnark
+      value: gwlWvpboM9nw6tMuQO3NZfRusby0JSyCRixtCl9u19GXuYqEbUcu4DsmD33HsZJZGSY5OciPngJjCsVJApP1lMwlgSxnj76uWByubqW5L1U0uuxOVeiCHWjuUh0C7SOYIWOWi3ImUtaPofWlIAow7R+BM+2apomHYgANcZzC4zaJUzOHzj2naIehkSQIzh801zpynDgblOg3EWXv07pHUxa2YxpYoe9B/fVijZacfSq2GjNHygjzC/N4ML+z4XKLp6SrsKGZMOK7Jr3svLNc3ZAitK/vTpxX+CPXwFat8CeB26duYGX12bdhhjMz0THXj6J7Nfe/ZXJAbSX/v2rhKCsISheVtUvGldKVbch6CgIGKngB5GxKDu3eJpc/mMxBAAAAAoajg7mPEk5YI6K4MrxPZXT8XkXZBu8V7gZVOelj+BD7ghL21RYtkPx4y7Z1JZjUZmAT0ozkj9x9idOJxPmw2IAAAAAAiev2BQt5xKlt+vpi+lkupiYY5BE8ernBf/siNEBj7sEaYitadZcMSLFRbEfRBJuVkJ5RTgVPGajg8itPThmcQsg3QRrylTdsD9C17llRR1M+Lp19EXm8YDb9wEQuNKuwAp92/dq/7kpaqRLF8C51v4pvpLIXpWNtPFYnSLX0jsk=
+    sequence: "1"
 ```
 
 This key is the only information about the circuit stored on chain, and each
