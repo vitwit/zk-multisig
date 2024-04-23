@@ -1,6 +1,6 @@
 # gnarkcli
 
-This is a demo of adding a zk account type to the SDK (v0.50) using [gnark](https://github.com/Consensys/gnark) (groth16 and bn254).
+This is a demo of adding a zk account type to the SDK (v0.50) using [gnark](https://github.com/Consensys/gnark) (groth16 and bn254). This allows a Cosmos-SDK account to be controlled by an arbitrary user-defined off-chain ZK circuit.
 
 It was inspired by my recent comment in the Celestia forum on adding ZK to the base layer: https://forum.celestia.org/t/celestia-snark-accounts-design-spec/1639/9?u=ebuchman
 
@@ -11,32 +11,35 @@ account).
 
 ## Pubkey.Gnark
 
-The idea to add this to the SDK is quite simple. The SDK defines a generic
-PubKey interface, and every account has a PubKey. So the idea here is to define
-a new PubKey type that is actually a zk verification key. This way we require
+The SDK defines a [generic PubKey interface](/crypto/types/types.go#L9), and every account has a PubKey. So the idea here is to define
+a new PubKey instance type that is actually a zk verification key. This way we require
 the absolute minimum number of changes to the SDK - no changes to the account
-structure or anything else really, just a new PubKey type, defined in
-[`crypto/keys/gnark`](https://github.com/informalsystems/cosmos-sdk/tree/gnark50/crypto/keys/gnark), with the corresponding proto file in
-[`proto/cosmos/crypto/gnark`](https://github.com/informalsystems/cosmos-sdk/blob/gnark50/proto/cosmos/crypto/gnark/keys.proto).
+structure or anything else really, just a new concrete PubKey type, defined in
+[`crypto/keys/gnark`](/crypto/keys/gnark), with the corresponding proto file in
+[`proto/cosmos/crypto/gnark`](/proto/cosmos/crypto/gnark/keys.proto).
 
 There is also a corresponding PrivKey type, which just wraps the circuit's
 underlying proving key and constraint system. Everything is implemented using
-the underlying bytes so there is no dependence on the circuit's data types once
-it's been compiled.
+serialized bytes so that once a circuit is compiled, there is no dependence on the circuit's data types.
 
 The core of the SDK's PrivKey and PubKey interfaces are the `PrivKey.Sign(msg)`
-and `PubKey.VerifySignature(msg, sig)`. In our world, `PrivKey.Sign` is really
-the prover (taking in witness data, outputing a zk proof), and
-`PubKey.VerifySignature` is the zk verifier. For `PubKeyVerifySignature(msg,
+and `PubKey.VerifySignature(msg, sig)`. Normally, these are elliptic curve signing and signature verification 
+methods. In our world, `PrivKey` is a zk prover and `Pubkey` is a zk verifier, so `PrivKey.Sign` produces a zk proof
+and `PubKey.VerifySignature` verifies one. For `PubKeyVerifySignature(msg,
 sig)`, the `msg` argument is the tx bytes (passed in standard by the SDK itself) and the `sig`
 contains serialized proof and witness data (initially passed in by the user as
 part of their "signed" tx)
 
 The `PubKey.Address` is defined as expected, as the SHA256 hash of the
 underlying verification key. From the perspective of the blockchain, the address
-itself gives no indication of what kind of key it is!
+itself gives no indication of what kind of key it is or of what circuit it pertains to. 
+This means we can make normal Cosmos-SDK accounts
+that are controlled by _arbitrary_ ZK circuits. So it's like a smart-contract-based account but without
+needing a VM on chain. The circuits themselves are defined completley off chain. The only thing that
+goes on chain is the verification key!
 
-The `gnark` module uses `groth16` as the proving system and the `bn254` curve,
+The new [`gnark`](https://github.com/informalsystems/cosmos-sdk/tree/gnark50/crypto/keys/gnark) key type module 
+uses `groth16` as the proving system and the `bn254` curve,
 as these were easy to get started with. In principle we could add other pairs of
 proving system and curve, though these should likely be their own separate
 modules and pubkey types. 
@@ -49,7 +52,7 @@ by the users of the account. Since each account can define its own circuit, a
 new setup must be done each time. For accounts designed to be used by many
 users, this isn't great, but for accounts with a limited number of users, like a
 zk multisig, the setup requires basically the same kind of work and trust assumptions as
-seting up a normal multisig.
+setting up a normal multisig.
 
 To activate the new `gnark` pubkey type in the SDK took only a few extra lines.
 We had to add 2 lines in `crypto/codec/proto.go` to
@@ -61,23 +64,28 @@ charge based on the size of the verification key, proof, and witness data).
 ## Circuits
 
 The new `gnark` module is designed to work with arbitrary circuits defined by
-users. The only thing it takes in are serialized bytes of the circuit's keys and
+users off-chain. The only thing it takes in are serialized bytes of the circuit's keys and
 constraint system. This means users can play with new circuits without having to
 recompile the main chain binary or update the chain (!). Of course since we use
 groth16 for now they need to do a trusted setup for each new circuit.
 
-There is an example circuit in [`crypto/keys/gnark/eddsa`](https://github.com/informalsystems/cosmos-sdk/blob/gnark50/crypto/keys/gnark/eddsa/eddsa.go#L35). It's a simple eddsa
-signature from a single key. This has the same functionality as a normal SDK
+There are two example circuits, [`crypto/keys/gnark/eddsa`](https://github.com/informalsystems/cosmos-sdk/blob/gnark50/crypto/keys/gnark/eddsa/eddsa.go#L35) and [`crypto/keys/gnark/password`](https://github.com/informalsystems/cosmos-sdk/blob/gnark50/crypto/keys/gnark/password/password.go#L23). 
+The `eddsa` circuit does a simple eddsa
+signature verification from a single key, using an eddsa pubkey built into the circuit. 
+This has the same functionality as a normal SDK
 signature, except the underlying public key is never revealed, and instead of
 verifying the eddsa signature directly on chain, a zero knowledge proof of the
-eddsa signature verification is verified instead. 
+eddsa signature verification is verified instead. The `password` circuit just checks that you 
+ know some secret value (by checking the result of hashing it with some public data), where the secret
+ itself is included in the circuit. This effectively allows you to send transactions from an account just by knowing
+some password (without even needing a real private key or doing any kind of signing!). In both cases the user specific info (either an eddsa key or a password) is included in the circuit, so each time a user instatiates one of these circuits they'll get a different verification key and thus a different address (unless they use the same eddsa pubkey or the same secret password!).
 
-This is kind of a trivial example, but useful as a starting point. A slightly more interesting example 
-would be a zk multisig. A normal SDK multisig requires all the pubkeys of the
+These are simple examples, but useful as starting points. A slightly more interesting example 
+would be a zk multisig, or a zk login account. A normal SDK multisig requires all the pubkeys of the
 multisig to be stored on chain, and whenever a tx is signed, its clear which
 pubkeys in the multisig signed for it. With a zk multisig, only the circuit's
 verification key is stored on chain. The underlying pubkeys are never revealed,
-nor is it revelead which of them signed a given tx.
+nor is it revelead which of them signed a given tx. With a zk login account, users would be able to send Cosmos-SDK txs using Oauth logins.
 
 ## Let me play
 
