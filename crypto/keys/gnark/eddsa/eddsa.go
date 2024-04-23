@@ -136,7 +136,7 @@ func SignMsg(privateKey signature.Signer, msg []byte) ([]byte, []byte) {
 	// instantiate hash function
 	hFunc := hash.MIMC_BN254.New()
 
-	msgToSign := gnarkutil.GetMsgToSign(msg)
+	msgToSign := gnarkutil.HashMsg(msg)
 
 	// sign the message
 	signature, err := privateKey.Sign(msgToSign, hFunc)

@@ -6,7 +6,7 @@ import (
 )
 
 // hash the msg to the curve using fr.Hash
-func GetMsgToSign(msg []byte) []byte {
+func HashMsg(msg []byte) []byte {
 	elems, err := fr.Hash(msg, nil, 1)
 	if err != nil {
 		panic(err)

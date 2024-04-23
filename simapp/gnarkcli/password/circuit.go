@@ -16,11 +16,15 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/gnark/password"
 )
 
+// compile circuit using given password,
+// write everything to files so they can be used to sign txs
 func main() {
 
+	// our super secret password
 	pwd := []byte("billysagenius")
-	pwdHash := gnarkutil.GetMsgToSign(pwd)
+	pwdHash := gnarkutil.HashMsg(pwd)
 
+	// compile the circuit
 	pk, vk, cs := password.CompileCircuit(pwdHash)
 
 	vkBuf, pkBuf, csBuf := new(bytes.Buffer), new(bytes.Buffer), new(bytes.Buffer)
@@ -35,14 +39,19 @@ func main() {
 		VerifyingKey:     verifier.Key,
 	}
 
+	// account address is hash(vk)
 	fmt.Println("Hex Account Address", verifier.Address())
 	fmt.Printf("Bech32 Account Address: %s\n", sdk.AccAddress(verifier.Address()))
 
+	// write circuit keys and data to file
 	ioutil.WriteFile("keys/vk", verifier.Key, 0666)
 	ioutil.WriteFile("keys/pk", prover.ProvingKey, 0666)
 	ioutil.WriteFile("keys/cs", prover.ConstraintSystem, 0666)
 
-	//----
+	//-----------------------------------------------------------
+	// DONE. Circuit is compiled and keys are written to files.
+	// What follows is just testing a round of proving/verificaiton.
+	//-----------------------------------------------------------
 
 	// get example msg to sign
 	msg := gnark.GetMsg()

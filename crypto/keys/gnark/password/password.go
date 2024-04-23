@@ -100,8 +100,8 @@ func SignMsg(password, msg []byte) ([]byte, []byte) {
 	// instantiate hash function
 	hFunc := hash.MIMC_BN254.New()
 
-	msgToSign := gnarkutil.GetMsgToSign(msg)
-	pwdHash := gnarkutil.GetMsgToSign(password)
+	msgToSign := gnarkutil.HashMsg(msg)
+	pwdHash := gnarkutil.HashMsg(password)
 
 	// sign the message
 	hFunc.Write(msgToSign)

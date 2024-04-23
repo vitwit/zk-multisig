@@ -153,7 +153,7 @@ func (v PubKey) VerifySignature(msg, sigBytes []byte) bool {
 	msgBytes := msgElement.Bytes()
 
 	// hash the msg to curve
-	msgHashed := gnarkutil.GetMsgToSign(msg)
+	msgHashed := gnarkutil.HashMsg(msg)
 
 	// check hash(msg) == sig.Message
 	if !bytes.Equal(msgHashed, msgBytes[:]) {
