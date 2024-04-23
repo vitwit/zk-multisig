@@ -180,6 +180,21 @@ balances:
   denom: stake
 ```
 
+And if we query the account data, we see it has no specified pubkey yet. 
+In the cosmos-sdk, an account's pubkey is only added to the account once it
+sends its first transaction. Since we haven't sent a tx from this account yet,
+the chain doesn't know its pubkey (or even that its actually a zk account with a
+verification key!) 
+
+```
+$simd query auth account $ADDR
+account:
+  type: cosmos-sdk/BaseAccount
+  value:
+    account_number: "1"
+    address: cosmos1e9z5esedugxf9vlv9c7jh4df3lqkqakq3aap9k
+```
+
 ### Generate, Sign, and Broadcast a Tx
 
 Now we can generate an unsigned tx to send funds from this account to another
@@ -230,6 +245,36 @@ And the balance from your zk account should have been reduced!
 simd query bank balances $ADDR
 ```
 
+Finally, you can see that the verification key is now stored in the account on-chain:
+
+```
+$simd query auth account $ADDR
+account:
+  type: cosmos-sdk/BaseAccount
+    value:
+        account_number: "1"
+            address: cosmos1e9z5esedugxf9vlv9c7jh4df3lqkqakq3aap9k
+                public_key:
+                      type: tendermint/PubKeyGnark
+                            value:
+                            gwlWvpboM9nw6tMuQO3NZfRusby0JSyCRixtCl9u19GXuYqEbUcu4DsmD33HsZJZGSY5OciPngJjCsVJApP1lMwlgSxnj76uWByubqW5L1U0uuxOVeiCHWjuUh0C7SOYIWOWi3ImUtaPofWlIAow7R+BM+2apomHYgANcZzC4zaJUzOHzj2naIehkSQIzh801zpynDgblOg3EWXv07pHUxa2YxpYoe9B/fVijZacfSq2GjNHygjzC/N4ML+z4XKLp6SrsKGZMOK7Jr3svLNc3ZAitK/vTpxX+CPXwFat8CeB26duYGX12bdhhjMz0THXj6J7Nfe/ZXJAbSX/v2rhKCsISheVtUvGldKVbch6CgIGKngB5GxKDu3eJpc/mMxBAAAAAoajg7mPEk5YI6K4MrxPZXT8XkXZBu8V7gZVOelj+BD7ghL21RYtkPx4y7Z1JZjUZmAT0ozkj9x9idOJxPmw2IAAAAAAiev2BQt5xKlt+vpi+lkupiYY5BE8ernBf/siNEBj7sEaYitadZcMSLFRbEfRBJuVkJ5RTgVPGajg8itPThmcQsg3QRrylTdsD9C17llRR1M+Lp19EXm8YDb9wEQuNKuwAp92/dq/7kpaqRLF8C51v4pvpLIXpWNtPFYnSLX0jsk=
+                                sequence: "1"
+```
+
+This key is the only information about the circuit stored on chain, and each
+different circuit or instantiation of a circuit with different data will have its own verification
+key stored in the account on chain once it makes its first transaction.
+
+You can now send more txs by incrementing the sequence number, ie.
+
+```
+go run cli.go 1
+```
+
+To send different kinds of txs, generate a new `unsigned.json`
+
+---
+
 CONGRATS! You just sent a cosmos-sdk tx using a zk proof!
 
-
+Now try to build you're own circuit and copy these `circuit.go` and `cli.go` scripts to test them out!
