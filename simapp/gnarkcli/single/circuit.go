@@ -30,7 +30,7 @@ func main() {
 	pk.WriteTo(pkBuf)
 	cs.WriteTo(csBuf)
 
-	verifier := gnark.PubKey{vkBuf.Bytes()}
+	verifier := gnark.PubKey{Key: vkBuf.Bytes()}
 	prover := gnark.PrivKey{
 		ProvingKey:       pkBuf.Bytes(),
 		ConstraintSystem: csBuf.Bytes(),

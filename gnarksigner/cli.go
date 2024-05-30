@@ -128,7 +128,7 @@ func getSignBytes(signer *Signer) ([]byte, error) {
 	}
 
 	// gnark (groth16.bn254) pub and privkeys
-	gnarkPub := &gnark.PubKey{vkBytes}
+	gnarkPub := &gnark.PubKey{Key: vkBytes}
 	gnarkPriv := &gnark.PrivKey{
 		ProvingKey:       pkBytes,
 		VerifyingKey:     vkBytes,
