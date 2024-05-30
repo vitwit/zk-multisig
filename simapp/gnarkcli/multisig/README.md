@@ -45,6 +45,7 @@ const (
 
 ### To generate eddsa priv keys, pubkeys and create a Multisig account
     cd simapp
+    cd gnarkcli
     cd multsig
     go run circuit.go
 
